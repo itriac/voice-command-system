@@ -154,20 +154,19 @@
       margin-bottom: 10px;
     }
     .exec-action { font-size: 1.05rem; color: #a5d6a7; margin-bottom: 8px; }
-    .exec-api:empty { display: none; }
-    #action-api {
+    .exec-api {
       display: inline-block;
       font-family: 'Consolas', 'Courier New', monospace;
-      font-size: 0.88rem;
+      font-size: 0.9rem;
       color: #e0f7fa;
       background: #0d2a2a;
       border: 1px solid #4db6ac;
       border-radius: 6px;
-      padding: 4px 12px;
-      margin-top: 10px;
+      padding: 5px 14px;
+      margin-bottom: 18px;
       letter-spacing: 0.4px;
     }
-    #action-api:empty { display: none; }
+    .exec-api:empty { display: none; }
     .progress-track {
       height: 5px;
       background: #1b3a1b;
@@ -267,7 +266,6 @@
 <div class="panel">
   <div class="panel-label">識別動作</div>
   <div id="action-text">（等待指令）</div>
-  <div id="action-api"></div>
 </div>
 
 <!-- Executing -->
@@ -342,7 +340,6 @@ const UI = {
   micLabel:    document.getElementById('mic-label'),
   confirmHint: document.getElementById('confirm-hint'),
   actionText:  document.getElementById('action-text'),
-  actionApi:   document.getElementById('action-api'),
   execPanel:   document.getElementById('exec-panel'),
   execName:    document.getElementById('exec-action-name'),
   progressFill:document.getElementById('progress-fill'),
@@ -447,7 +444,6 @@ function handleMicClick() {
   // Fresh command
   UI.transcript.textContent = '（聆聽中…）';
   UI.actionText.textContent = '（等待指令）';
-  UI.actionApi.textContent  = '';
   UI.execPanel.className = 'panel exec-panel';
   UI.progressFill.style.width = '0%';
   pendingAction = null;
@@ -483,7 +479,6 @@ function processCommand(text) {
     pendingAction = matched.action;
     pendingApi = matched.api || null;
     UI.actionText.textContent = matched.action;
-    UI.actionApi.textContent  = matched.api || '';
     speakActionPrompt(matched.action);
   }, 400);
 }
@@ -536,7 +531,6 @@ function handleConfirm(text) {
       setState('IDLE');
       UI.transcript.textContent = '（尚未收到語音輸入）';
       UI.actionText.textContent = '（等待指令）';
-      UI.actionApi.textContent  = '';
       pendingAction = null;
       pendingApi = null;
     });
