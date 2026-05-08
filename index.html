@@ -447,10 +447,19 @@ function processCommand(text) {
   setState('PROCESS');
   setTimeout(() => {
     const matched = COMMANDS.find(c => c.keywords.some(k => text.includes(k)));
-    const action = matched ? matched.action : text;
-    pendingAction = action;
-    UI.actionText.textContent = action;
-    speakActionPrompt(action);
+    if (!matched) {
+      UI.actionText.textContent = '（無法辨識指令）';
+      setState('RETRY');
+      speak('無法辨識指令，請重新提供命令', () => {
+        setState('IDLE');
+        UI.transcript.textContent = '（尚未收到語音輸入）';
+        UI.actionText.textContent = '（等待指令）';
+      });
+      return;
+    }
+    pendingAction = matched.action;
+    UI.actionText.textContent = matched.action;
+    speakActionPrompt(matched.action);
   }, 400);
 }
 
