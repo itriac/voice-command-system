@@ -6,11 +6,28 @@
 
 - Google Chrome 或 Microsoft Edge（Firefox 不支援 Web Speech API）
 - 麥克風裝置
-- 無需安裝任何套件或伺服器，直接開啟 `index.html` 即可使用
+- Node.js（用於本地伺服器）
+
+## 啟動方式
+
+> **注意：** 請勿直接雙擊 `index.html` 開啟。瀏覽器對 `file://` 不會記憶麥克風授權，每次都會詢問。請改用本地伺服器。
+
+**方法一：雙擊批次檔**
+
+雙擊 `啟動伺服器.bat`，瀏覽器會自動開啟 `http://localhost:3000`。
+
+**方法二：終端機**
+
+```bash
+cd voice-command-system
+node server.js
+```
+
+伺服器啟動後，在 Chrome / Edge 允許麥克風一次，之後即會記住授權。按 `Ctrl+C` 停止伺服器。
 
 ## 使用方式
 
-1. 用 Chrome / Edge 開啟 `index.html`
+1. 啟動伺服器後，瀏覽器開啟 `http://localhost:3000`
 2. 首次使用時允許瀏覽器存取麥克風
 3. 按下麥克風按鈕（或按**空白鍵**）開始錄音
 4. 說出指令，例如：「執行通感融合網元驗證腳本」
@@ -65,6 +82,8 @@ TTS 朗讀動作 + 「請回覆是否正確」
 
 ```
 voice-command-system/
-├── index.html   # 主程式（單一檔案，含 HTML / CSS / JavaScript）
+├── index.html      # 主程式（單一檔案，含 HTML / CSS / JavaScript）
+├── server.js       # 本地靜態伺服器（Node.js，port 3000）
+├── 啟動伺服器.bat   # 雙擊即可啟動伺服器並開啟瀏覽器
 └── README.md
 ```
