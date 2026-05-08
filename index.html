@@ -11,38 +11,37 @@
       font-family: 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif;
       background: #080d1a;
       color: #d0ddf0;
-      min-height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      padding: 24px 16px 40px;
-      gap: 18px;
+      padding: 10px 18px 12px;
+      gap: 8px;
     }
 
-    header { text-align: center; }
+    /* ── Header ── */
+    header { text-align: center; flex-shrink: 0; }
     header h1 {
-      font-size: 1.75rem;
+      font-size: 1.35rem;
       color: #4fc3f7;
       letter-spacing: 2px;
-      text-shadow: 0 0 24px rgba(79,195,247,0.45);
+      text-shadow: 0 0 20px rgba(79,195,247,0.4);
     }
-    header p { color: #607d8b; font-size: 0.88rem; margin-top: 6px; }
+    header p { color: #546e7a; font-size: 0.78rem; margin-top: 2px; }
 
+    /* ── Panel base ── */
     .panel {
-      width: 100%;
-      max-width: 780px;
       background: #111a2e;
       border: 1px solid #1e2d4a;
       border-radius: 10px;
-      padding: 18px 22px;
+      padding: 12px 16px;
     }
-
     .panel-label {
-      font-size: 0.72rem;
+      font-size: 0.68rem;
       text-transform: uppercase;
       letter-spacing: 1.5px;
       color: #546e7a;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     /* ── Status Bar ── */
@@ -50,10 +49,10 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px 18px;
+      flex-shrink: 0;
     }
     .dot {
-      width: 11px; height: 11px;
+      width: 10px; height: 10px;
       border-radius: 50%;
       background: #37474f;
       flex-shrink: 0;
@@ -70,21 +69,47 @@
       0%,100% { opacity:1; transform:scale(1); }
       50%     { opacity:.45; transform:scale(1.35); }
     }
-    #status-text { font-size: 0.92rem; color: #90a4ae; }
+    #status-text { font-size: 0.88rem; color: #90a4ae; }
 
-    /* ── Transcript ── */
-    #transcript {
-      font-size: 1.25rem;
-      line-height: 1.65;
-      min-height: 56px;
-      color: #e0ecff;
+    /* ── Main 2-col grid ── */
+    .main-grid {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
     }
-    #interim { color: #607d8b; font-style: italic; font-size: 1rem; margin-top: 4px; min-height: 20px; }
+
+    .col-left, .col-right {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    /* ── Transcript (fills remaining left space) ── */
+    .transcript-panel {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #transcript {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: #e0ecff;
+      flex: 1;
+      overflow-y: auto;
+    }
+    #transcript::-webkit-scrollbar { width: 3px; }
+    #transcript::-webkit-scrollbar-thumb { background: #1e2d4a; border-radius: 2px; }
+    #interim { color: #607d8b; font-style: italic; font-size: 0.9rem; margin-top: 4px; min-height: 18px; flex-shrink: 0; }
 
     /* ── Mic Button ── */
-    .mic-section { display: flex; justify-content: center; padding: 10px 0; }
+    .mic-section { display: flex; justify-content: center; flex-shrink: 0; }
     .mic-btn {
-      width: 96px; height: 96px;
+      width: 80px; height: 80px;
       border-radius: 50%;
       border: 3px solid #4fc3f7;
       background: #111a2e;
@@ -92,14 +117,14 @@
       cursor: pointer;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      gap: 4px;
+      gap: 3px;
       transition: all 0.25s;
       outline: none;
       user-select: none;
     }
     .mic-btn:hover:not(.disabled) {
       background: #182540;
-      box-shadow: 0 0 28px rgba(79,195,247,0.35);
+      box-shadow: 0 0 24px rgba(79,195,247,0.35);
     }
     .mic-btn.recording {
       border-color: #ef5350;
@@ -113,65 +138,113 @@
       pointer-events: none;
     }
     @keyframes recPulse {
-      0%,100% { transform:scale(1); box-shadow: 0 0 16px rgba(239,83,80,.45); }
-      50%     { transform:scale(1.06); box-shadow: 0 0 36px rgba(239,83,80,.75); }
+      0%,100% { transform:scale(1); box-shadow: 0 0 14px rgba(239,83,80,.45); }
+      50%     { transform:scale(1.06); box-shadow: 0 0 30px rgba(239,83,80,.75); }
     }
-    .mic-icon { font-size: 2.2rem; line-height: 1; }
-    .mic-label { font-size: 0.62rem; letter-spacing: 1px; text-transform: uppercase; }
+    .mic-icon { font-size: 1.9rem; line-height: 1; }
+    .mic-label { font-size: 0.58rem; letter-spacing: 1px; text-transform: uppercase; }
 
     /* ── Confirm Hint ── */
     .confirm-hint {
       display: none;
       text-align: center;
-      padding: 12px 18px;
+      padding: 8px 14px;
       background: #12102a;
       border: 1px solid #2e2a60;
       border-radius: 8px;
       color: #9c88ff;
-      font-size: 0.95rem;
+      font-size: 0.82rem;
+      flex-shrink: 0;
     }
     .confirm-hint.show { display: block; }
 
     /* ── Action Box ── */
     #action-text {
-      font-size: 1.1rem;
+      font-size: 1rem;
       color: #80cbc4;
-      min-height: 36px;
+      min-height: 32px;
     }
 
-    /* ── Executing Panel ── */
-    .exec-panel {
-      display: none;
-      text-align: center;
+    /* ── History (fills remaining right space) ── */
+    .history-panel {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
-    .exec-panel.show { display: block; }
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+    .history-list::-webkit-scrollbar { width: 4px; }
+    .history-list::-webkit-scrollbar-track { background: #0d1525; }
+    .history-list::-webkit-scrollbar-thumb { background: #1e2d4a; border-radius: 2px; }
+    .hist-item {
+      padding: 6px 0;
+      border-bottom: 1px solid #182034;
+      font-size: 0.84rem;
+      color: #78909c;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .hist-item:last-child { border-bottom: none; }
+    .hist-time { color: #455a64; font-size: 0.75rem; flex-shrink: 0; }
+    .hist-action { flex: 1; }
+    .badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+    .badge.ok     { background: #1b3a1e; color: #81c784; }
+    .badge.cancel { background: #3e1a0a; color: #ff8a65; }
+
+    /* ── Executing Overlay (fixed, full-screen modal) ── */
+    .exec-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(6, 10, 20, 0.92);
+      backdrop-filter: blur(6px);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      text-align: center;
+      padding: 40px;
+    }
+    .exec-overlay.show { display: flex; }
     .exec-title {
-      font-size: 1.85rem;
+      font-size: 2rem;
       font-weight: 700;
       color: #66bb6a;
-      letter-spacing: 2px;
-      text-shadow: 0 0 22px rgba(102,187,106,.55);
-      margin-bottom: 10px;
+      letter-spacing: 3px;
+      text-shadow: 0 0 28px rgba(102,187,106,.6);
     }
-    .exec-action { font-size: 1.05rem; color: #a5d6a7; margin-bottom: 8px; }
+    .exec-action { font-size: 1.1rem; color: #a5d6a7; }
     .exec-api {
-      display: inline-block;
       font-family: 'Consolas', 'Courier New', monospace;
       font-size: 0.9rem;
       color: #e0f7fa;
       background: #0d2a2a;
       border: 1px solid #4db6ac;
       border-radius: 6px;
-      padding: 5px 14px;
-      margin-bottom: 18px;
+      padding: 5px 16px;
       letter-spacing: 0.4px;
     }
     .exec-api:empty { display: none; }
     .progress-track {
+      width: min(480px, 80vw);
       height: 5px;
       background: #1b3a1b;
       border-radius: 3px;
       overflow: hidden;
+      margin-top: 6px;
     }
     .progress-fill {
       height: 100%;
@@ -181,47 +254,16 @@
       transition: width 0.08s linear;
     }
 
-    /* ── History ── */
-    .history-list {
-      max-height: 180px;
-      overflow-y: auto;
-    }
-    .history-list::-webkit-scrollbar { width: 4px; }
-    .history-list::-webkit-scrollbar-track { background: #0d1525; }
-    .history-list::-webkit-scrollbar-thumb { background: #1e2d4a; border-radius: 2px; }
-    .hist-item {
-      padding: 7px 0;
-      border-bottom: 1px solid #182034;
-      font-size: 0.88rem;
-      color: #78909c;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .hist-item:last-child { border-bottom: none; }
-    .hist-time { color: #455a64; font-size: 0.78rem; flex-shrink: 0; }
-    .hist-action { flex: 1; }
-    .badge {
-      font-size: 0.72rem;
-      padding: 2px 9px;
-      border-radius: 10px;
-      flex-shrink: 0;
-    }
-    .badge.ok     { background: #1b3a1e; color: #81c784; }
-    .badge.cancel { background: #3e1a0a; color: #ff8a65; }
-
     /* ── No-support warning ── */
     .warn {
       color: #ef9a9a;
       background: #1c0a0a;
       border: 1px solid #4e1a1a;
       border-radius: 8px;
-      padding: 14px 18px;
-      font-size: 0.92rem;
+      padding: 10px 16px;
+      font-size: 0.88rem;
       display: none;
-      width: 100%;
-      max-width: 780px;
+      flex-shrink: 0;
       text-align: center;
     }
     .warn.show { display: block; }
@@ -237,52 +279,55 @@
 <div class="warn" id="warn-box"></div>
 
 <!-- Status -->
-<div class="panel status-bar" style="padding:12px 22px;">
+<div class="panel status-bar">
   <div class="dot idle" id="dot"></div>
   <span id="status-text">系統待機中</span>
 </div>
 
-<!-- Transcript -->
-<div class="panel">
-  <div class="panel-label">語音轉文字</div>
-  <div id="transcript">（尚未收到語音輸入）</div>
-  <div id="interim"></div>
+<!-- Main 2-col grid -->
+<div class="main-grid">
+
+  <!-- Left: Transcript + Mic + Confirm -->
+  <div class="col-left">
+    <div class="panel transcript-panel">
+      <div class="panel-label">語音轉文字</div>
+      <div id="transcript">（尚未收到語音輸入）</div>
+      <div id="interim"></div>
+    </div>
+    <div class="mic-section">
+      <button class="mic-btn" id="mic-btn" onclick="handleMicClick()" title="按空白鍵也可啟動">
+        <span class="mic-icon">🎤</span>
+        <span class="mic-label" id="mic-label">點擊開始</span>
+      </button>
+    </div>
+    <div class="confirm-hint" id="confirm-hint">
+      🎙️ 請說「<strong>正確</strong>」確認，或「<strong>錯誤</strong>」重新輸入
+    </div>
+  </div>
+
+  <!-- Right: Action + History -->
+  <div class="col-right">
+    <div class="panel">
+      <div class="panel-label">識別動作</div>
+      <div id="action-text">（等待指令）</div>
+    </div>
+    <div class="panel history-panel">
+      <div class="panel-label">執行記錄</div>
+      <div class="history-list" id="history-list">
+        <div class="hist-item" id="hist-empty" style="color:#37474f;font-size:.82rem;">尚無記錄</div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
-<!-- Mic -->
-<div class="mic-section">
-  <button class="mic-btn" id="mic-btn" onclick="handleMicClick()" title="按空白鍵也可啟動">
-    <span class="mic-icon">🎤</span>
-    <span class="mic-label" id="mic-label">點擊開始</span>
-  </button>
-</div>
-
-<!-- Confirm hint -->
-<div class="confirm-hint" id="confirm-hint">
-  🎙️ 請說「<strong>正確</strong>」確認執行，或說「<strong>錯誤</strong>」重新輸入
-</div>
-
-<!-- Action -->
-<div class="panel">
-  <div class="panel-label">識別動作</div>
-  <div id="action-text">（等待指令）</div>
-</div>
-
-<!-- Executing -->
-<div class="panel exec-panel" id="exec-panel">
+<!-- Executing overlay (full-screen modal) -->
+<div class="exec-overlay" id="exec-panel">
   <div class="exec-title">⚙ 動作執行中</div>
   <div class="exec-action" id="exec-action-name"></div>
   <div class="exec-api" id="exec-api"></div>
   <div class="progress-track">
     <div class="progress-fill" id="progress-fill"></div>
-  </div>
-</div>
-
-<!-- History -->
-<div class="panel">
-  <div class="panel-label">執行記錄</div>
-  <div class="history-list" id="history-list">
-    <div class="hist-item" id="hist-empty" style="color:#37474f;font-size:.85rem;">尚無記錄</div>
   </div>
 </div>
 
@@ -441,10 +486,8 @@ function handleMicClick() {
   }
   if (state !== 'IDLE') return;
 
-  // Fresh command
   UI.transcript.textContent = '（聆聽中…）';
   UI.actionText.textContent = '（等待指令）';
-  UI.execPanel.className = 'panel exec-panel';
   UI.progressFill.style.width = '0%';
   pendingAction = null;
   pendingApi = null;
@@ -544,7 +587,7 @@ function handleConfirm(text) {
 // ─────────────────────────────────────────────────────────────────
 function executeAction() {
   setState('EXECUTE');
-  UI.execPanel.className = 'panel exec-panel show';
+  UI.execPanel.classList.add('show');
   UI.execName.textContent = pendingAction || '未知動作';
   UI.execApi.textContent  = pendingApi || '';
   UI.progressFill.style.width = '0%';
@@ -558,7 +601,7 @@ function executeAction() {
       clearInterval(progressTimer);
       setTimeout(() => {
         addHistory(pendingAction, true);
-        UI.execPanel.className = 'panel exec-panel';
+        UI.execPanel.classList.remove('show');
         UI.progressFill.style.width = '0%';
         UI.execApi.textContent = '';
         pendingAction = null;
@@ -594,7 +637,6 @@ window.addEventListener('load', () => {
     UI.warnBox.classList.add('show');
     UI.micBtn.classList.add('disabled');
   }
-  // warm up voices list
   synth.getVoices();
   synth.onvoiceschanged = () => synth.getVoices();
 });
