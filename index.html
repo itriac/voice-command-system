@@ -153,7 +153,14 @@
       text-shadow: 0 0 22px rgba(102,187,106,.55);
       margin-bottom: 10px;
     }
-    .exec-action { font-size: 1.05rem; color: #a5d6a7; margin-bottom: 18px; }
+    .exec-action { font-size: 1.05rem; color: #a5d6a7; margin-bottom: 8px; }
+    .exec-api {
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.85rem;
+      color: #4db6ac;
+      margin-bottom: 18px;
+      letter-spacing: 0.3px;
+    }
     .progress-track {
       height: 5px;
       background: #1b3a1b;
@@ -197,39 +204,6 @@
     }
     .badge.ok     { background: #1b3a1e; color: #81c784; }
     .badge.cancel { background: #3e1a0a; color: #ff8a65; }
-
-    /* ── API Calls Panel ── */
-    .api-list { display: flex; flex-direction: column; gap: 8px; min-height: 36px; }
-    .api-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: #0d1525;
-      border: 1px solid #1e2d4a;
-      border-radius: 6px;
-      padding: 8px 14px;
-      font-size: 0.88rem;
-    }
-    .api-method {
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      padding: 2px 8px;
-      border-radius: 4px;
-      flex-shrink: 0;
-      min-width: 52px;
-      text-align: center;
-    }
-    .method-GET    { background: #0d2e1a; color: #69f0ae; border: 1px solid #1b5e33; }
-    .method-POST   { background: #0d1f3a; color: #64b5f6; border: 1px solid #1a3a6e; }
-    .method-DELETE { background: #2e0d0d; color: #ef9a9a; border: 1px solid #5e1a1a; }
-    .api-path {
-      font-family: 'Consolas', 'Courier New', monospace;
-      color: #b0bec5;
-      flex: 1;
-    }
-    .api-desc { color: #546e7a; font-size: 0.8rem; flex-shrink: 0; }
-    .api-placeholder { color: #37474f; font-size: 0.88rem; }
 
     /* ── No-support warning ── */
     .warn {
@@ -288,18 +262,11 @@
   <div id="action-text">（等待指令）</div>
 </div>
 
-<!-- API Calls -->
-<div class="panel">
-  <div class="panel-label">後端 API 呼叫路徑</div>
-  <div class="api-list" id="api-list">
-    <div class="api-placeholder">（等待指令）</div>
-  </div>
-</div>
-
 <!-- Executing -->
 <div class="panel exec-panel" id="exec-panel">
   <div class="exec-title">⚙ 動作執行中</div>
   <div class="exec-action" id="exec-action-name"></div>
+  <div class="exec-api" id="exec-api"></div>
   <div class="progress-track">
     <div class="progress-fill" id="progress-fill"></div>
   </div>
@@ -324,66 +291,24 @@ const synth = window.speechSynthesis;
 //  Command mapping  (keywords → action)
 // ─────────────────────────────────────────────────────────────────
 const COMMANDS = [
-  { keywords: ['通感融合', '網元驗證', '網元'],
+  { keywords: ['通感融合', '網元驗證', '網元', '驗證'],
     action: '執行通感融合網元驗證腳本',
-    apis: [
-      { method: 'POST', path: '/api/v1/convergence/validate',        desc: '啟動網元驗證任務' },
-      { method: 'GET',  path: '/api/v1/convergence/topology',        desc: '取得拓撲資訊' },
-      { method: 'GET',  path: '/api/v1/convergence/validate/status', desc: '查詢驗證狀態' },
-    ]
-  },
+    api: 'POST /api/v1/convergence/validate' },
   { keywords: ['系統重啟', '重新啟動', '重啟'],
-    action: '執行系統重啟程序',
-    apis: [
-      { method: 'POST', path: '/api/v1/system/restart',        desc: '發送重啟指令' },
-      { method: 'GET',  path: '/api/v1/system/status',         desc: '確認系統狀態' },
-    ]
-  },
+    action: '執行系統重啟程序' },
   { keywords: ['網路掃描', '掃描網路', '網絡掃描', '拓撲掃描'],
-    action: '啟動網路拓撲掃描',
-    apis: [
-      { method: 'POST', path: '/api/v1/network/scan',          desc: '啟動拓撲掃描' },
-      { method: 'GET',  path: '/api/v1/network/nodes',         desc: '取得節點清單' },
-      { method: 'GET',  path: '/api/v1/network/scan/result',   desc: '取得掃描結果' },
-    ]
-  },
+    action: '啟動網路拓撲掃描' },
   { keywords: ['資料備份', '數據備份', '備份'],
-    action: '執行資料備份程序',
-    apis: [
-      { method: 'POST', path: '/api/v1/backup/start',          desc: '啟動備份作業' },
-      { method: 'GET',  path: '/api/v1/backup/progress',       desc: '查詢備份進度' },
-    ]
-  },
+    action: '執行資料備份程序' },
   { keywords: ['健康檢查', '系統健康', '狀態檢查'],
     action: '執行系統健康狀態檢查',
-    apis: [
-      { method: 'GET',  path: '/api/v1/health',                desc: '整體健康狀態' },
-      { method: 'GET',  path: '/api/v1/health/services',       desc: '各服務狀態' },
-      { method: 'GET',  path: '/api/v1/health/metrics',        desc: '效能指標' },
-    ]
-  },
+    api: 'GET /api/v1/health' },
   { keywords: ['日誌', '記錄查看', '查看日誌', '分析日誌'],
-    action: '提取並分析系統日誌',
-    apis: [
-      { method: 'GET',  path: '/api/v1/logs?level=error',      desc: '取得錯誤日誌' },
-      { method: 'POST', path: '/api/v1/logs/analyze',          desc: '觸發日誌分析' },
-    ]
-  },
+    action: '提取並分析系統日誌' },
   { keywords: ['部署', '發布', '上線'],
-    action: '執行應用程式部署流程',
-    apis: [
-      { method: 'POST', path: '/api/v1/deploy/trigger',        desc: '觸發部署流程' },
-      { method: 'GET',  path: '/api/v1/deploy/pipeline',       desc: '取得 Pipeline 狀態' },
-      { method: 'GET',  path: '/api/v1/deploy/rollback',       desc: '確認回滾點' },
-    ]
-  },
+    action: '執行應用程式部署流程' },
   { keywords: ['清理快取', '清除快取', '清快取'],
-    action: '清理系統快取資料',
-    apis: [
-      { method: 'DELETE', path: '/api/v1/cache/all',           desc: '清除全部快取' },
-      { method: 'GET',    path: '/api/v1/cache/stats',         desc: '確認快取狀態' },
-    ]
-  },
+    action: '清理系統快取資料' },
 ];
 
 const POSITIVE = ['正確','對','好','是','確認','執行','沒錯','可以','yes','ok','對的','就這樣'];
@@ -397,6 +322,7 @@ const NEGATIVE = ['錯誤','錯','不','否','取消','停止','重來','不對'
 let state = 'IDLE';
 let recognizer = null;
 let pendingAction = null;
+let pendingApi = null;
 let progressTimer = null;
 
 const UI = {
@@ -414,7 +340,7 @@ const UI = {
   historyList: document.getElementById('history-list'),
   histEmpty:   document.getElementById('hist-empty'),
   warnBox:     document.getElementById('warn-box'),
-  apiList:     document.getElementById('api-list'),
+  execApi:     document.getElementById('exec-api'),
 };
 
 function setState(s) {
@@ -512,10 +438,10 @@ function handleMicClick() {
   // Fresh command
   UI.transcript.textContent = '（聆聽中…）';
   UI.actionText.textContent = '（等待指令）';
-  UI.apiList.innerHTML = '<div class="api-placeholder">（等待指令）</div>';
   UI.execPanel.className = 'panel exec-panel';
   UI.progressFill.style.width = '0%';
   pendingAction = null;
+  pendingApi = null;
   startRecognizing('cmd');
 }
 
@@ -528,18 +454,6 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-//  API list renderer
-// ─────────────────────────────────────────────────────────────────
-function renderApiList(apis) {
-  UI.apiList.innerHTML = apis.map(a => `
-    <div class="api-item">
-      <span class="api-method method-${a.method}">${a.method}</span>
-      <span class="api-path">${a.path}</span>
-      <span class="api-desc">${a.desc}</span>
-    </div>`).join('');
-}
-
-// ─────────────────────────────────────────────────────────────────
 //  Command → Action mapping
 // ─────────────────────────────────────────────────────────────────
 function processCommand(text) {
@@ -548,19 +462,17 @@ function processCommand(text) {
     const matched = COMMANDS.find(c => c.keywords.some(k => text.includes(k)));
     if (!matched) {
       UI.actionText.textContent = '（無法辨識指令）';
-      UI.apiList.innerHTML = '<div class="api-placeholder">（無匹配指令）</div>';
       setState('RETRY');
       speak('無法辨識指令，請重新提供命令', () => {
         setState('IDLE');
         UI.transcript.textContent = '（尚未收到語音輸入）';
         UI.actionText.textContent = '（等待指令）';
-        UI.apiList.innerHTML = '<div class="api-placeholder">（等待指令）</div>';
       });
       return;
     }
     pendingAction = matched.action;
+    pendingApi = matched.api || null;
     UI.actionText.textContent = matched.action;
-    renderApiList(matched.apis);
     speakActionPrompt(matched.action);
   }, 400);
 }
@@ -614,6 +526,7 @@ function handleConfirm(text) {
       UI.transcript.textContent = '（尚未收到語音輸入）';
       UI.actionText.textContent = '（等待指令）';
       pendingAction = null;
+      pendingApi = null;
     });
   } else {
     speak('無法辨識，請說正確或錯誤', () => autoListenConfirm());
@@ -627,6 +540,7 @@ function executeAction() {
   setState('EXECUTE');
   UI.execPanel.className = 'panel exec-panel show';
   UI.execName.textContent = pendingAction || '未知動作';
+  UI.execApi.textContent  = pendingApi || '';
   UI.progressFill.style.width = '0%';
 
   let p = 0;
@@ -640,7 +554,9 @@ function executeAction() {
         addHistory(pendingAction, true);
         UI.execPanel.className = 'panel exec-panel';
         UI.progressFill.style.width = '0%';
+        UI.execApi.textContent = '';
         pendingAction = null;
+        pendingApi = null;
         setState('IDLE');
       }, 600);
     }
