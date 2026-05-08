@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>語音指令控制系統</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif;
+      background: #080d1a;
+      color: #d0ddf0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 40px;
+      gap: 18px;
+    }
+
+    header { text-align: center; }
+    header h1 {
+      font-size: 1.75rem;
+      color: #4fc3f7;
+      letter-spacing: 2px;
+      text-shadow: 0 0 24px rgba(79,195,247,0.45);
+    }
+    header p { color: #607d8b; font-size: 0.88rem; margin-top: 6px; }
+
+    .panel {
+      width: 100%;
+      max-width: 780px;
+      background: #111a2e;
+      border: 1px solid #1e2d4a;
+      border-radius: 10px;
+      padding: 18px 22px;
+    }
+
+    .panel-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #546e7a;
+      margin-bottom: 10px;
+    }
+
+    /* ── Status Bar ── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px;
+    }
+    .dot {
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      background: #37474f;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .dot.idle     { background: #37474f; }
+    .dot.listen   { background: #ef5350; animation: blink 0.9s infinite; }
+    .dot.process  { background: #ffa726; animation: blink 0.45s infinite; }
+    .dot.speak    { background: #42a5f5; animation: blink 0.75s infinite; }
+    .dot.await    { background: #ab47bc; animation: blink 1.1s infinite; }
+    .dot.execute  { background: #66bb6a; animation: blink 0.5s infinite; }
+    .dot.retry    { background: #ff7043; animation: blink 0.6s infinite; }
+    @keyframes blink {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%     { opacity:.45; transform:scale(1.35); }
+    }
+    #status-text { font-size: 0.92rem; color: #90a4ae; }
+
+    /* ── Transcript ── */
+    #transcript {
+      font-size: 1.25rem;
+      line-height: 1.65;
+      min-height: 56px;
+      color: #e0ecff;
+    }
+    #interim { color: #607d8b; font-style: italic; font-size: 1rem; margin-top: 4px; min-height: 20px; }
+
+    /* ── Mic Button ── */
+    .mic-section { display: flex; justify-content: center; padding: 10px 0; }
+    .mic-btn {
+      width: 96px; height: 96px;
+      border-radius: 50%;
+      border: 3px solid #4fc3f7;
+      background: #111a2e;
+      color: #4fc3f7;
+      cursor: pointer;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 4px;
+      transition: all 0.25s;
+      outline: none;
+      user-select: none;
+    }
+    .mic-btn:hover:not(.disabled) {
+      background: #182540;
+      box-shadow: 0 0 28px rgba(79,195,247,0.35);
+    }
+    .mic-btn.recording {
+      border-color: #ef5350;
+      color: #ef5350;
+      animation: recPulse 0.9s infinite;
+    }
+    .mic-btn.disabled {
+      border-color: #263238;
+      color: #37474f;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    @keyframes recPulse {
+      0%,100% { transform:scale(1); box-shadow: 0 0 16px rgba(239,83,80,.45); }
+      50%     { transform:scale(1.06); box-shadow: 0 0 36px rgba(239,83,80,.75); }
+    }
+    .mic-icon { font-size: 2.2rem; line-height: 1; }
+    .mic-label { font-size: 0.62rem; letter-spacing: 1px; text-transform: uppercase; }
+
+    /* ── Confirm Hint ── */
+    .confirm-hint {
+      display: none;
+      text-align: center;
+      padding: 12px 18px;
+      background: #12102a;
+      border: 1px solid #2e2a60;
+      border-radius: 8px;
+      color: #9c88ff;
+      font-size: 0.95rem;
+    }
+    .confirm-hint.show { display: block; }
+
+    /* ── Action Box ── */
+    #action-text {
+      font-size: 1.1rem;
+      color: #80cbc4;
+      min-height: 36px;
+    }
+
+    /* ── Executing Panel ── */
+    .exec-panel {
+      display: none;
+      text-align: center;
+    }
+    .exec-panel.show { display: block; }
+    .exec-title {
+      font-size: 1.85rem;
+      font-weight: 700;
+      color: #66bb6a;
+      letter-spacing: 2px;
+      text-shadow: 0 0 22px rgba(102,187,106,.55);
+      margin-bottom: 10px;
+    }
+    .exec-action { font-size: 1.05rem; color: #a5d6a7; margin-bottom: 18px; }
+    .progress-track {
+      height: 5px;
+      background: #1b3a1b;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #43a047, #a5d6a7);
+      border-radius: 3px;
+      transition: width 0.08s linear;
+    }
+
+    /* ── History ── */
+    .history-list {
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .history-list::-webkit-scrollbar { width: 4px; }
+    .history-list::-webkit-scrollbar-track { background: #0d1525; }
+    .history-list::-webkit-scrollbar-thumb { background: #1e2d4a; border-radius: 2px; }
+    .hist-item {
+      padding: 7px 0;
+      border-bottom: 1px solid #182034;
+      font-size: 0.88rem;
+      color: #78909c;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .hist-item:last-child { border-bottom: none; }
+    .hist-time { color: #455a64; font-size: 0.78rem; flex-shrink: 0; }
+    .hist-action { flex: 1; }
+    .badge {
+      font-size: 0.72rem;
+      padding: 2px 9px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+    .badge.ok     { background: #1b3a1e; color: #81c784; }
+    .badge.cancel { background: #3e1a0a; color: #ff8a65; }
+
+    /* ── No-support warning ── */
+    .warn {
+      color: #ef9a9a;
+      background: #1c0a0a;
+      border: 1px solid #4e1a1a;
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 0.92rem;
+      display: none;
+      width: 100%;
+      max-width: 780px;
+      text-align: center;
+    }
+    .warn.show { display: block; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>語音指令控制系統</h1>
+  <p>按下麥克風按鈕，說出您的指令</p>
+</header>
+
+<div class="warn" id="warn-box"></div>
+
+<!-- Status -->
+<div class="panel status-bar" style="padding:12px 22px;">
+  <div class="dot idle" id="dot"></div>
+  <span id="status-text">系統待機中</span>
+</div>
+
+<!-- Transcript -->
+<div class="panel">
+  <div class="panel-label">語音轉文字</div>
+  <div id="transcript">（尚未收到語音輸入）</div>
+  <div id="interim"></div>
+</div>
+
+<!-- Mic -->
+<div class="mic-section">
+  <button class="mic-btn" id="mic-btn" onclick="handleMicClick()" title="按空白鍵也可啟動">
+    <span class="mic-icon">🎤</span>
+    <span class="mic-label" id="mic-label">點擊開始</span>
+  </button>
+</div>
+
+<!-- Confirm hint -->
+<div class="confirm-hint" id="confirm-hint">
+  🎙️ 請說「<strong>正確</strong>」確認執行，或說「<strong>錯誤</strong>」重新輸入
+</div>
+
+<!-- Action -->
+<div class="panel">
+  <div class="panel-label">識別動作</div>
+  <div id="action-text">（等待指令）</div>
+</div>
+
+<!-- Executing -->
+<div class="panel exec-panel" id="exec-panel">
+  <div class="exec-title">⚙ 動作執行中</div>
+  <div class="exec-action" id="exec-action-name"></div>
+  <div class="progress-track">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+</div>
+
+<!-- History -->
+<div class="panel">
+  <div class="panel-label">執行記錄</div>
+  <div class="history-list" id="history-list">
+    <div class="hist-item" id="hist-empty" style="color:#37474f;font-size:.85rem;">尚無記錄</div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────
+//  Browser API
+// ─────────────────────────────────────────────────────────────────
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const synth = window.speechSynthesis;
+
+// ─────────────────────────────────────────────────────────────────
+//  Command mapping  (keywords → action)
+// ─────────────────────────────────────────────────────────────────
+const COMMANDS = [
+  { keywords: ['通感融合', '網元驗證', '網元'],
+    action: '執行通感融合網元驗證腳本' },
+  { keywords: ['系統重啟', '重新啟動', '重啟'],
+    action: '執行系統重啟程序' },
+  { keywords: ['網路掃描', '掃描網路', '網絡掃描', '拓撲掃描'],
+    action: '啟動網路拓撲掃描' },
+  { keywords: ['資料備份', '數據備份', '備份'],
+    action: '執行資料備份程序' },
+  { keywords: ['健康檢查', '系統健康', '狀態檢查'],
+    action: '執行系統健康狀態檢查' },
+  { keywords: ['日誌', '記錄查看', '查看日誌', '分析日誌'],
+    action: '提取並分析系統日誌' },
+  { keywords: ['部署', '發布', '上線'],
+    action: '執行應用程式部署流程' },
+  { keywords: ['清理快取', '清除快取', '清快取'],
+    action: '清理系統快取資料' },
+];
+
+const POSITIVE = ['正確','對','好','是','確認','執行','沒錯','可以','yes','ok','對的','就這樣'];
+const NEGATIVE = ['錯誤','錯','不','否','取消','停止','重來','不對','不是','no','不行','不要'];
+
+// ─────────────────────────────────────────────────────────────────
+//  State machine
+//  IDLE → LISTEN_CMD → PROCESS → SPEAK_ACTION → AWAIT_CONFIRM
+//      → LISTEN_CONFIRM → EXECUTE | RETRY → IDLE
+// ─────────────────────────────────────────────────────────────────
+let state = 'IDLE';
+let recognizer = null;
+let pendingAction = null;
+let progressTimer = null;
+
+const UI = {
+  dot:         document.getElementById('dot'),
+  statusText:  document.getElementById('status-text'),
+  transcript:  document.getElementById('transcript'),
+  interim:     document.getElementById('interim'),
+  micBtn:      document.getElementById('mic-btn'),
+  micLabel:    document.getElementById('mic-label'),
+  confirmHint: document.getElementById('confirm-hint'),
+  actionText:  document.getElementById('action-text'),
+  execPanel:   document.getElementById('exec-panel'),
+  execName:    document.getElementById('exec-action-name'),
+  progressFill:document.getElementById('progress-fill'),
+  historyList: document.getElementById('history-list'),
+  histEmpty:   document.getElementById('hist-empty'),
+  warnBox:     document.getElementById('warn-box'),
+};
+
+function setState(s) {
+  state = s;
+  const D = UI.dot; const B = UI.micBtn;
+  D.className = 'dot'; B.className = 'mic-btn';
+  UI.confirmHint.className = 'confirm-hint';
+
+  const map = {
+    IDLE:           { dotCls:'idle',    status:'系統待機中',        label:'點擊開始' },
+    LISTEN_CMD:     { dotCls:'listen',  status:'聆聽指令中…',       label:'錄音中',   rec:true },
+    PROCESS:        { dotCls:'process', status:'分析指令中…',       label:'處理中',   dis:true },
+    SPEAK_ACTION:   { dotCls:'speak',   status:'播報動作中…',       label:'播報中',   dis:true },
+    AWAIT_CONFIRM:  { dotCls:'await',   status:'等待確認回覆…',     label:'等待回覆', confirm:true },
+    LISTEN_CONFIRM: { dotCls:'listen',  status:'聆聽確認中…',       label:'回覆中',   rec:true, confirm:true },
+    EXECUTE:        { dotCls:'execute', status:'執行動作中…',       label:'執行中',   dis:true },
+    RETRY:          { dotCls:'retry',   status:'請重新提供指令…',   label:'請重試',   dis:true },
+  };
+  const cfg = map[s] || map.IDLE;
+  D.classList.add(cfg.dotCls);
+  UI.statusText.textContent = cfg.status;
+  UI.micLabel.textContent   = cfg.label;
+  if (cfg.rec)     B.classList.add('recording');
+  if (cfg.dis)     B.classList.add('disabled');
+  if (cfg.confirm) UI.confirmHint.classList.add('show');
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  SpeechRecognition helpers
+// ─────────────────────────────────────────────────────────────────
+function startRecognizing(mode) {
+  if (recognizer) { try { recognizer.abort(); } catch(e){} }
+  if (!SR) return;
+
+  recognizer = new SR();
+  recognizer.lang = 'zh-TW';
+  recognizer.continuous = false;
+  recognizer.interimResults = true;
+  recognizer.maxAlternatives = 3;
+
+  recognizer.onstart = () => setState(mode === 'cmd' ? 'LISTEN_CMD' : 'LISTEN_CONFIRM');
+
+  recognizer.onresult = (e) => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      e.results[i].isFinal ? (final += t) : (interim += t);
+    }
+    UI.interim.textContent = interim;
+    if (final) {
+      UI.interim.textContent = '';
+      if (mode === 'cmd') {
+        UI.transcript.textContent = final;
+        processCommand(final);
+      } else {
+        handleConfirm(final);
+      }
+    }
+  };
+
+  recognizer.onerror = (e) => {
+    UI.interim.textContent = '';
+    if (e.error === 'no-speech') {
+      if (mode === 'confirm') {
+        speak('未偵測到語音，請說正確或錯誤', () => autoListenConfirm());
+      } else {
+        setState('IDLE');
+      }
+    } else if (e.error !== 'aborted') {
+      console.warn('SR error:', e.error);
+      setState('IDLE');
+    }
+  };
+
+  recognizer.onend = () => { UI.interim.textContent = ''; };
+
+  recognizer.start();
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Mic button handler
+// ─────────────────────────────────────────────────────────────────
+function handleMicClick() {
+  if (state === 'LISTEN_CMD') {
+    recognizer && recognizer.stop();
+    setState('IDLE');
+    return;
+  }
+  if (state === 'AWAIT_CONFIRM') {
+    startRecognizing('confirm');
+    return;
+  }
+  if (state !== 'IDLE') return;
+
+  // Fresh command
+  UI.transcript.textContent = '（聆聽中…）';
+  UI.actionText.textContent = '（等待指令）';
+  UI.execPanel.className = 'panel exec-panel';
+  UI.progressFill.style.width = '0%';
+  pendingAction = null;
+  startRecognizing('cmd');
+}
+
+// spacebar shortcut
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && e.target === document.body) {
+    e.preventDefault();
+    handleMicClick();
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Command → Action mapping
+// ─────────────────────────────────────────────────────────────────
+function processCommand(text) {
+  setState('PROCESS');
+  setTimeout(() => {
+    const matched = COMMANDS.find(c => c.keywords.some(k => text.includes(k)));
+    const action = matched ? matched.action : text;
+    pendingAction = action;
+    UI.actionText.textContent = action;
+    speakActionPrompt(action);
+  }, 400);
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  TTS
+// ─────────────────────────────────────────────────────────────────
+function speak(text, onEnd) {
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'zh-TW';
+  u.rate = 0.92;
+  u.pitch = 1.0;
+  u.volume = 1.0;
+  const voices = synth.getVoices();
+  const zhVoice = voices.find(v => /zh[-_]TW|zh[-_]Hant|zh[-_]HK/i.test(v.lang))
+                || voices.find(v => v.lang.toLowerCase().startsWith('zh'));
+  if (zhVoice) u.voice = zhVoice;
+  if (onEnd) u.onend = onEnd;
+  synth.speak(u);
+}
+
+function speakActionPrompt(action) {
+  setState('SPEAK_ACTION');
+  speak(`${action}，請回覆是否正確`, () => {
+    setState('AWAIT_CONFIRM');
+    autoListenConfirm();
+  });
+}
+
+function autoListenConfirm() {
+  setTimeout(() => {
+    if (state === 'AWAIT_CONFIRM') startRecognizing('confirm');
+  }, 600);
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Confirmation handler
+// ─────────────────────────────────────────────────────────────────
+function handleConfirm(text) {
+  const pos = POSITIVE.some(k => text.includes(k));
+  const neg = NEGATIVE.some(k => text.includes(k));
+
+  if (pos && !neg) {
+    executeAction();
+  } else if (neg) {
+    addHistory(pendingAction, false);
+    setState('RETRY');
+    speak('請重新提供命令', () => {
+      setState('IDLE');
+      UI.transcript.textContent = '（尚未收到語音輸入）';
+      UI.actionText.textContent = '（等待指令）';
+      pendingAction = null;
+    });
+  } else {
+    speak('無法辨識，請說正確或錯誤', () => autoListenConfirm());
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Execute
+// ─────────────────────────────────────────────────────────────────
+function executeAction() {
+  setState('EXECUTE');
+  UI.execPanel.className = 'panel exec-panel show';
+  UI.execName.textContent = pendingAction || '未知動作';
+  UI.progressFill.style.width = '0%';
+
+  let p = 0;
+  clearInterval(progressTimer);
+  progressTimer = setInterval(() => {
+    p += 1.5;
+    UI.progressFill.style.width = Math.min(p, 100) + '%';
+    if (p >= 100) {
+      clearInterval(progressTimer);
+      setTimeout(() => {
+        addHistory(pendingAction, true);
+        UI.execPanel.className = 'panel exec-panel';
+        UI.progressFill.style.width = '0%';
+        pendingAction = null;
+        setState('IDLE');
+      }, 600);
+    }
+  }, 55);
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  History
+// ─────────────────────────────────────────────────────────────────
+function addHistory(action, success) {
+  const empty = document.getElementById('hist-empty');
+  if (empty) empty.remove();
+
+  const t = new Date().toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  const el = document.createElement('div');
+  el.className = 'hist-item';
+  el.innerHTML = `<span class="hist-time">${t}</span>`
+    + `<span class="hist-action">${action || '—'}</span>`
+    + `<span class="badge ${success ? 'ok' : 'cancel'}">${success ? '已執行' : '已取消'}</span>`;
+  UI.historyList.insertBefore(el, UI.historyList.firstChild);
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Init / Support check
+// ─────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  if (!SR) {
+    UI.warnBox.textContent = '⚠️ 您的瀏覽器不支援 SpeechRecognition API，請改用 Google Chrome 或 Microsoft Edge。';
+    UI.warnBox.classList.add('show');
+    UI.micBtn.classList.add('disabled');
+  }
+  // warm up voices list
+  synth.getVoices();
+  synth.onvoiceschanged = () => synth.getVoices();
+});
+</script>
+</body>
+</html>
