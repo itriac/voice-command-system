@@ -7,6 +7,7 @@
 - Google Chrome 或 Microsoft Edge（Firefox 不支援 Web Speech API）
 - 麥克風裝置
 - Node.js（用於本地伺服器）
+- **網路連線**（語音辨識需傳送至 Google / Microsoft 雲端服務）
 
 ## 啟動方式
 
@@ -122,7 +123,14 @@ node server.js
 
 ### 語音辨識（STT）
 
-使用瀏覽器原生 `window.SpeechRecognition`（Chrome/Edge 為 `webkitSpeechRecognition`），無需外部 API 或網路傳輸至第三方伺服器。
+使用瀏覽器原生 `window.SpeechRecognition`（Chrome/Edge 為 `webkitSpeechRecognition`）。雖為瀏覽器 API，但底層實作依賴雲端辨識服務，**需要網路連線**：
+
+| 瀏覽器 | 音訊傳送目標 |
+|--------|-------------|
+| Chrome | Google Speech API |
+| Edge | Microsoft Azure Speech |
+
+斷網後語音辨識將失效，這是 Web Speech API 的平台限制，無法在純離線環境下使用。
 
 | 參數 | 值 | 說明 |
 |------|----|------|
