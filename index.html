@@ -301,7 +301,7 @@
       </button>
     </div>
     <div class="confirm-hint" id="confirm-hint">
-      🎙️ 請說「<strong>正確</strong>」確認，或「<strong>錯誤</strong>」重新輸入
+      🎙️ 請說「<strong>正確</strong>」確認，或「<strong>錯誤</strong>」重新輸入 ／ 按麥克風取消
     </div>
   </div>
 
@@ -345,21 +345,9 @@ const COMMANDS = [
   { keywords: ['通感融合', '網元驗證', '網元', '驗證'],
     action: '執行通感融合網元驗證腳本',
     api: 'POST /api/v1/convergence/validate' },
-  { keywords: ['系統重啟', '重新啟動', '重啟'],
-    action: '執行系統重啟程序' },
-  { keywords: ['網路掃描', '掃描網路', '網絡掃描', '拓撲掃描'],
-    action: '啟動網路拓撲掃描' },
-  { keywords: ['資料備份', '數據備份', '備份'],
-    action: '執行資料備份程序' },
   { keywords: ['健康檢查', '系統健康', '狀態檢查'],
     action: '執行系統健康狀態檢查',
     api: 'GET /api/v1/health' },
-  { keywords: ['日誌', '記錄查看', '查看日誌', '分析日誌'],
-    action: '提取並分析系統日誌' },
-  { keywords: ['部署', '發布', '上線'],
-    action: '執行應用程式部署流程' },
-  { keywords: ['清理快取', '清除快取', '清快取'],
-    action: '清理系統快取資料' },
 ];
 
 const POSITIVE = ['正確','對','好','是','確認','執行','沒錯','可以','yes','ok','對的','就這樣'];
@@ -405,8 +393,8 @@ function setState(s) {
     LISTEN_CMD:     { dotCls:'listen',  status:'聆聽指令中…',       label:'錄音中',   rec:true },
     PROCESS:        { dotCls:'process', status:'分析指令中…',       label:'處理中',   dis:true },
     SPEAK_ACTION:   { dotCls:'speak',   status:'播報動作中…',       label:'播報中',   dis:true },
-    AWAIT_CONFIRM:  { dotCls:'await',   status:'等待確認回覆…',     label:'等待回覆', confirm:true },
-    LISTEN_CONFIRM: { dotCls:'listen',  status:'聆聽確認中…',       label:'回覆中',   rec:true, confirm:true },
+    AWAIT_CONFIRM:  { dotCls:'await',   status:'等待確認回覆…',     label:'取消',     confirm:true },
+    LISTEN_CONFIRM: { dotCls:'listen',  status:'聆聽確認中…',       label:'取消',     rec:true, confirm:true },
     EXECUTE:        { dotCls:'execute', status:'執行動作中…',       label:'執行中',   dis:true },
     RETRY:          { dotCls:'retry',   status:'請重新提供指令…',   label:'請重試',   dis:true },
   };
@@ -456,6 +444,7 @@ function startRecognizing(mode) {
     UI.interim.textContent = '';
     if (e.error === 'no-speech') {
       if (mode === 'confirm') {
+        setState('AWAIT_CONFIRM');
         speak('未偵測到語音，請說正確或錯誤', () => autoListenConfirm());
       } else {
         setState('IDLE');
@@ -472,6 +461,17 @@ function startRecognizing(mode) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+//  Helpers
+// ─────────────────────────────────────────────────────────────────
+function resetToIdle() {
+  pendingAction = null;
+  pendingApi = null;
+  UI.transcript.textContent = '（尚未收到語音輸入）';
+  UI.actionText.textContent = '（等待指令）';
+  setState('IDLE');
+}
+
+// ─────────────────────────────────────────────────────────────────
 //  Mic button handler
 // ─────────────────────────────────────────────────────────────────
 function handleMicClick() {
@@ -480,8 +480,10 @@ function handleMicClick() {
     setState('IDLE');
     return;
   }
-  if (state === 'AWAIT_CONFIRM') {
-    startRecognizing('confirm');
+  if (state === 'AWAIT_CONFIRM' || state === 'LISTEN_CONFIRM') {
+    recognizer && recognizer.abort();
+    synth.cancel();
+    resetToIdle();
     return;
   }
   if (state !== 'IDLE') return;
@@ -512,11 +514,7 @@ function processCommand(text) {
     if (!matched) {
       UI.actionText.textContent = '（無法辨識指令）';
       setState('RETRY');
-      speak('無法辨識指令，請重新提供命令', () => {
-        setState('IDLE');
-        UI.transcript.textContent = '（尚未收到語音輸入）';
-        UI.actionText.textContent = '（等待指令）';
-      });
+      speak('無法辨識指令，請重新提供命令', resetToIdle);
       return;
     }
     pendingAction = matched.action;
@@ -570,14 +568,9 @@ function handleConfirm(text) {
   } else if (neg) {
     addHistory(pendingAction, false);
     setState('RETRY');
-    speak('請重新提供命令', () => {
-      setState('IDLE');
-      UI.transcript.textContent = '（尚未收到語音輸入）';
-      UI.actionText.textContent = '（等待指令）';
-      pendingAction = null;
-      pendingApi = null;
-    });
+    speak('請重新提供命令', resetToIdle);
   } else {
+    setState('AWAIT_CONFIRM');
     speak('無法辨識，請說正確或錯誤', () => autoListenConfirm());
   }
 }
