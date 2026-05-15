@@ -93,7 +93,7 @@ node server.js
 | run indoor script number 2 | Run Indoor Script Number 2 | **AMR** | `POST /api/v1/indoor/script/2` |
 | run outdoor script number 1 | Run Outdoor Script Number 1 | **UAV** | `POST /api/v1/outdoor/script/1` |
 
-> 載具類型（AMR / UAV）在執行 overlay 中以大型發光文字顯示：AMR 為藍色、UAV 為金色。
+> 載具類型（AMR / UAV）在執行 overlay 中以 BBS 風格 ASCII art 白色發光文字顯示。
 
 > 若語音不符合任何關鍵字，系統直接拒絕並回到待機模式，不會進入確認流程。
 
@@ -137,5 +137,7 @@ voice-command-system/
 ├── index.html        # 主程式（單一檔案，含 HTML / CSS / JavaScript）
 ├── server.js         # 本地靜態伺服器（Node.js，port 3000）
 ├── 啟動伺服器.bat     # 雙擊即可啟動伺服器並開啟瀏覽器
+├── assets/
+│   └── screenshot.png
 └── README.md
 ```
