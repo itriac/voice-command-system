@@ -2,6 +2,8 @@
 
 透過網頁麥克風收音，說出喚醒詞 **OK ITRI** 後輸入英文指令，系統以 TTS 朗讀動作並等待確認，根據語意決定執行或重試。執行完畢或取消後自動回到待機狀態。
 
+![介面截圖](assets/screenshot.png)
+
 ## 需求
 
 - Google Chrome 或 Microsoft Edge（Firefox 不支援 Web Speech API）
