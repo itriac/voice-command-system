@@ -59,6 +59,7 @@
       transition: background 0.3s;
     }
     .dot.idle     { background: #37474f; }
+    .dot.standby  { background: #26c6da; animation: blink 2s infinite; }
     .dot.listen   { background: #ef5350; animation: blink 0.9s infinite; }
     .dot.process  { background: #ffa726; animation: blink 0.45s infinite; }
     .dot.speak    { background: #42a5f5; animation: blink 0.75s infinite; }
@@ -131,6 +132,11 @@
       color: #ef5350;
       animation: recPulse 0.9s infinite;
     }
+    .mic-btn.standby-mode {
+      border-color: #26c6da;
+      color: #26c6da;
+      animation: standbyPulse 2s infinite;
+    }
     .mic-btn.disabled {
       border-color: #263238;
       color: #37474f;
@@ -140,6 +146,10 @@
     @keyframes recPulse {
       0%,100% { transform:scale(1); box-shadow: 0 0 14px rgba(239,83,80,.45); }
       50%     { transform:scale(1.06); box-shadow: 0 0 30px rgba(239,83,80,.75); }
+    }
+    @keyframes standbyPulse {
+      0%,100% { transform:scale(1); box-shadow: 0 0 14px rgba(38,198,218,.3); }
+      50%     { transform:scale(1.04); box-shadow: 0 0 26px rgba(38,198,218,.6); }
     }
     .mic-icon { font-size: 1.9rem; line-height: 1; }
     .mic-label { font-size: 0.58rem; letter-spacing: 1px; text-transform: uppercase; }
@@ -226,6 +236,28 @@
       letter-spacing: 3px;
       text-shadow: 0 0 28px rgba(102,187,106,.6);
     }
+    .exec-vehicle {
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 1rem;
+      white-space: pre;
+      line-height: 1.2;
+      letter-spacing: 0;
+      padding: 14px 22px;
+      border-radius: 10px;
+    }
+    .exec-vehicle:empty { display: none; }
+    .exec-vehicle.amr {
+      color: #ffffff;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.25);
+      text-shadow: 0 0 10px rgba(255,255,255,0.5);
+    }
+    .exec-vehicle.uav {
+      color: #ffffff;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.25);
+      text-shadow: 0 0 10px rgba(255,255,255,0.5);
+    }
     .exec-action { font-size: 1.1rem; color: #a5d6a7; }
     .exec-api {
       font-family: 'Consolas', 'Courier New', monospace;
@@ -273,7 +305,7 @@
 
 <header>
   <h1>語音指令控制系統</h1>
-  <p>按下麥克風按鈕，說出您的指令</p>
+  <p>按下麥克風進入待機，說 <strong>OK ITRI</strong> 啟動語音指令</p>
 </header>
 
 <div class="warn" id="warn-box"></div>
@@ -281,7 +313,7 @@
 <!-- Status -->
 <div class="panel status-bar">
   <div class="dot idle" id="dot"></div>
-  <span id="status-text">系統待機中</span>
+  <span id="status-text">系統未啟動</span>
 </div>
 
 <!-- Main 2-col grid -->
@@ -301,7 +333,7 @@
       </button>
     </div>
     <div class="confirm-hint" id="confirm-hint">
-      🎙️ 請說「<strong>正確</strong>」確認，或「<strong>錯誤</strong>」重新輸入 ／ 按麥克風取消
+      🎙️ Say <strong>Yes</strong> to confirm or <strong>No</strong> to cancel ／ 按麥克風取消
     </div>
   </div>
 
@@ -324,6 +356,7 @@
 <!-- Executing overlay (full-screen modal) -->
 <div class="exec-overlay" id="exec-panel">
   <div class="exec-title">⚙ 動作執行中</div>
+  <div class="exec-vehicle" id="exec-vehicle"></div>
   <div class="exec-action" id="exec-action-name"></div>
   <div class="exec-api" id="exec-api"></div>
   <div class="progress-track">
@@ -340,46 +373,71 @@ const synth = window.speechSynthesis;
 
 // ─────────────────────────────────────────────────────────────────
 //  Command mapping  (keywords → action)
+//  vehicle: 'AMR' for indoor, 'UAV' for outdoor
 // ─────────────────────────────────────────────────────────────────
 const COMMANDS = [
-  { keywords: ['通感融合', '網元驗證', '網元', '驗證'],
-    action: '執行通感融合網元驗證腳本',
-    api: 'POST /api/v1/convergence/validate' },
-  { keywords: ['健康檢查', '系統健康', '狀態檢查'],
-    action: '執行系統健康狀態檢查',
-    api: 'GET /api/v1/health' },
+  {
+    keywords: ['outdoor script', 'outdoor'],
+    action: 'Run Outdoor Script Number 1',
+    vehicle: 'UAV',
+    api: 'POST /api/v1/outdoor/script/1'
+  },
+  {
+    keywords: ['indoor script number 1', 'indoor script number one',
+               'indoor 1', 'indoor one'],
+    action: 'Run Indoor Script Number 1',
+    vehicle: 'AMR',
+    api: 'POST /api/v1/indoor/script/1'
+  },
+  {
+    keywords: ['indoor script number 2', 'indoor script number two',
+               'indoor 2', 'indoor two'],
+    action: 'Run Indoor Script Number 2',
+    vehicle: 'AMR',
+    api: 'POST /api/v1/indoor/script/2'
+  },
 ];
 
-const POSITIVE = ['正確','對','好','是','確認','執行','沒錯','可以','yes','ok','對的','就這樣'];
-const NEGATIVE = ['錯誤','錯','不','否','取消','停止','重來','不對','不是','no','不行','不要'];
+const VEHICLE_ART = {
+  AMR: ` █████╗ ███╗   ███╗██████╗ \n██╔══██╗████╗ ████║██╔══██╗\n███████║██╔████╔██║██████╔╝\n██╔══██║██║╚██╔╝██║██╔══██╗\n██║  ██║██║ ╚═╝ ██║██║  ██║\n╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝`,
+  UAV: `██╗   ██╗ █████╗ ██╗   ██╗\n██║   ██║██╔══██╗██║   ██║\n██║   ██║███████║██║   ██║\n██║   ██║██╔══██║╚██╗ ██╔╝\n╚██████╔╝██║  ██║ ╚████╔╝ \n ╚═════╝ ╚═╝  ╚═╝  ╚═══╝  `,
+};
+
+const POSITIVE = ['yes', 'correct', 'right', 'confirm', 'ok', 'okay', 'affirmative', 'execute', 'go', 'do it', 'proceed', 'sure'];
+const NEGATIVE = ['no', 'wrong', 'cancel', 'stop', 'incorrect', 'negative', 'abort', 'reject', "don't", 'nope'];
 
 // ─────────────────────────────────────────────────────────────────
 //  State machine
-//  IDLE → LISTEN_CMD → PROCESS → SPEAK_ACTION → AWAIT_CONFIRM
-//      → LISTEN_CONFIRM → EXECUTE | RETRY → IDLE
+//  IDLE → (press mic) → STANDBY → (say "OK ITRI") → LISTEN_CMD
+//       → PROCESS → SPEAK_ACTION → AWAIT_CONFIRM → LISTEN_CONFIRM
+//       → EXECUTE → STANDBY
+//       → (negative/retry) → STANDBY
+//  STANDBY → (press mic) → IDLE
 // ─────────────────────────────────────────────────────────────────
 let state = 'IDLE';
 let recognizer = null;
 let pendingAction = null;
 let pendingApi = null;
+let pendingVehicle = null;
 let progressTimer = null;
 
 const UI = {
-  dot:         document.getElementById('dot'),
-  statusText:  document.getElementById('status-text'),
-  transcript:  document.getElementById('transcript'),
-  interim:     document.getElementById('interim'),
-  micBtn:      document.getElementById('mic-btn'),
-  micLabel:    document.getElementById('mic-label'),
-  confirmHint: document.getElementById('confirm-hint'),
-  actionText:  document.getElementById('action-text'),
-  execPanel:   document.getElementById('exec-panel'),
-  execName:    document.getElementById('exec-action-name'),
-  progressFill:document.getElementById('progress-fill'),
-  historyList: document.getElementById('history-list'),
-  histEmpty:   document.getElementById('hist-empty'),
-  warnBox:     document.getElementById('warn-box'),
-  execApi:     document.getElementById('exec-api'),
+  dot:          document.getElementById('dot'),
+  statusText:   document.getElementById('status-text'),
+  transcript:   document.getElementById('transcript'),
+  interim:      document.getElementById('interim'),
+  micBtn:       document.getElementById('mic-btn'),
+  micLabel:     document.getElementById('mic-label'),
+  confirmHint:  document.getElementById('confirm-hint'),
+  actionText:   document.getElementById('action-text'),
+  execPanel:    document.getElementById('exec-panel'),
+  execName:     document.getElementById('exec-action-name'),
+  execVehicle:  document.getElementById('exec-vehicle'),
+  progressFill: document.getElementById('progress-fill'),
+  historyList:  document.getElementById('history-list'),
+  histEmpty:    document.getElementById('hist-empty'),
+  warnBox:      document.getElementById('warn-box'),
+  execApi:      document.getElementById('exec-api'),
 };
 
 function setState(s) {
@@ -389,14 +447,15 @@ function setState(s) {
   UI.confirmHint.className = 'confirm-hint';
 
   const map = {
-    IDLE:           { dotCls:'idle',    status:'系統待機中',        label:'點擊開始' },
-    LISTEN_CMD:     { dotCls:'listen',  status:'聆聽指令中…',       label:'錄音中',   rec:true },
-    PROCESS:        { dotCls:'process', status:'分析指令中…',       label:'處理中',   dis:true },
-    SPEAK_ACTION:   { dotCls:'speak',   status:'播報動作中…',       label:'播報中',   dis:true },
-    AWAIT_CONFIRM:  { dotCls:'await',   status:'等待確認回覆…',     label:'取消',     confirm:true },
-    LISTEN_CONFIRM: { dotCls:'listen',  status:'聆聽確認中…',       label:'取消',     rec:true, confirm:true },
-    EXECUTE:        { dotCls:'execute', status:'執行動作中…',       label:'執行中',   dis:true },
-    RETRY:          { dotCls:'retry',   status:'請重新提供指令…',   label:'請重試',   dis:true },
+    IDLE:           { dotCls:'idle',    status:'系統未啟動',                  label:'點擊開始' },
+    STANDBY:        { dotCls:'standby', status:'等待喚醒詞 OK ITRI…',        label:'取消',     sby:true },
+    LISTEN_CMD:     { dotCls:'listen',  status:'聆聽指令中…',                 label:'取消',     rec:true },
+    PROCESS:        { dotCls:'process', status:'分析指令中…',                 label:'處理中',   dis:true },
+    SPEAK_ACTION:   { dotCls:'speak',   status:'播報動作中…',                 label:'播報中',   dis:true },
+    AWAIT_CONFIRM:  { dotCls:'await',   status:'等待確認回覆…',               label:'取消',     confirm:true },
+    LISTEN_CONFIRM: { dotCls:'listen',  status:'聆聽確認中…',                 label:'取消',     rec:true, confirm:true },
+    EXECUTE:        { dotCls:'execute', status:'執行動作中…',                 label:'執行中',   dis:true },
+    RETRY:          { dotCls:'retry',   status:'請重新提供指令…',             label:'請重試',   dis:true },
   };
   const cfg = map[s] || map.IDLE;
   D.classList.add(cfg.dotCls);
@@ -404,19 +463,103 @@ function setState(s) {
   UI.micLabel.textContent   = cfg.label;
   if (cfg.rec)     B.classList.add('recording');
   if (cfg.dis)     B.classList.add('disabled');
+  if (cfg.sby)     B.classList.add('standby-mode');
   if (cfg.confirm) UI.confirmHint.classList.add('show');
 }
 
 // ─────────────────────────────────────────────────────────────────
-//  SpeechRecognition helpers
+//  Standby: continuous listening for wake word "OK ITRI"
+// ─────────────────────────────────────────────────────────────────
+function startStandby() {
+  if (recognizer) { try { recognizer.abort(); } catch(e){} }
+  pendingAction = null;
+  pendingApi = null;
+  pendingVehicle = null;
+  UI.transcript.textContent = '（等待喚醒詞 OK ITRI…）';
+  UI.actionText.textContent = '（等待指令）';
+  UI.interim.textContent = '';
+  setState('STANDBY');
+  startWakeWordListening();
+}
+
+function isWakeWord(text) {
+  const t = text.toLowerCase();
+  return (
+    t.includes('itri')     ||  // direct: "ITRI"
+    t.includes('itchy')    ||  // phonetic: "ITCHY"
+    t.includes('i t r i')  ||  // spelled out: "I T R I"
+    t.includes('i tri')    ||  // partial: "I TRI"
+    t.includes('i tree')   ||  // phonetic: "I TREE"
+    t.includes('itree')    ||  // run-together: "ITREE"
+    /i[\s.\-]?t[\s.\-]?r[\s.\-]?i/i.test(t)  // with separators: "I.T.R.I"
+  );
+}
+
+function startWakeWordListening() {
+  if (!SR || state !== 'STANDBY') return;
+  if (recognizer) { try { recognizer.abort(); } catch(e){} }
+
+  recognizer = new SR();
+  recognizer.lang = 'en-US';
+  recognizer.continuous = true;
+  recognizer.interimResults = true;
+  recognizer.maxAlternatives = 3;
+
+  recognizer.onresult = (e) => {
+    if (state !== 'STANDBY') return;
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      // check all alternatives for better wake word coverage
+      let text = '';
+      for (let a = 0; a < e.results[i].length; a++) {
+        if (isWakeWord(e.results[i][a].transcript)) {
+          text = e.results[i][a].transcript;
+          break;
+        }
+      }
+      if (!text) text = e.results[i][0].transcript;
+      UI.interim.textContent = text;
+      if (isWakeWord(text)) {
+        recognizer.abort();
+        UI.interim.textContent = '';
+        UI.transcript.textContent = 'ITRI is at your service.';
+        setState('SPEAK_ACTION');
+        speak('Received. Please say your command.', () => startRecognizing('cmd'));
+        return;
+      }
+    }
+  };
+
+  recognizer.onerror = (e) => {
+    UI.interim.textContent = '';
+    if (e.error === 'aborted') return;
+    if (state === 'STANDBY') {
+      setTimeout(() => { if (state === 'STANDBY') startWakeWordListening(); }, 300);
+    }
+  };
+
+  recognizer.onend = () => {
+    UI.interim.textContent = '';
+    if (state === 'STANDBY') {
+      setTimeout(() => { if (state === 'STANDBY') startWakeWordListening(); }, 200);
+    }
+  };
+
+  try { recognizer.start(); } catch(e) { console.warn('Wake word SR error:', e); }
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  SpeechRecognition helpers (command & confirm)
 // ─────────────────────────────────────────────────────────────────
 function startRecognizing(mode) {
   if (recognizer) { try { recognizer.abort(); } catch(e){} }
   if (!SR) return;
 
+  let cmdTimer = null;
+  let cmdAccum = '';
+
   recognizer = new SR();
-  recognizer.lang = 'zh-TW';
-  recognizer.continuous = false;
+  recognizer.lang = 'en-US';
+  recognizer.continuous = mode === 'cmd'; // cmd: 持續聆聽避免停頓被提早送出
   recognizer.interimResults = true;
   recognizer.maxAlternatives = 3;
 
@@ -429,11 +572,20 @@ function startRecognizing(mode) {
       e.results[i].isFinal ? (final += t) : (interim += t);
     }
     UI.interim.textContent = interim;
+
     if (final) {
       UI.interim.textContent = '';
       if (mode === 'cmd') {
-        UI.transcript.textContent = final;
-        processCommand(final);
+        cmdAccum += (cmdAccum ? ' ' : '') + final;
+        UI.transcript.textContent = cmdAccum;
+        clearTimeout(cmdTimer);
+        cmdTimer = setTimeout(() => {
+          if (state !== 'LISTEN_CMD') return;
+          const text = cmdAccum;
+          cmdAccum = '';
+          recognizer.stop();
+          processCommand(text);
+        }, 1200);
       } else {
         handleConfirm(final);
       }
@@ -442,58 +594,135 @@ function startRecognizing(mode) {
 
   recognizer.onerror = (e) => {
     UI.interim.textContent = '';
+    clearTimeout(cmdTimer);
     if (e.error === 'no-speech') {
       if (mode === 'confirm') {
         setState('AWAIT_CONFIRM');
-        speak('未偵測到語音，請說正確或錯誤', () => autoListenConfirm());
+        speak('No speech detected. Please say yes or no.', () => autoListenConfirm());
       } else {
-        setState('IDLE');
+        startStandby();
       }
     } else if (e.error !== 'aborted') {
       console.warn('SR error:', e.error);
-      setState('IDLE');
+      startStandby();
     }
   };
 
-  recognizer.onend = () => { UI.interim.textContent = ''; };
+  recognizer.onend = () => {
+    UI.interim.textContent = '';
+    if (mode === 'cmd' && cmdAccum && state === 'LISTEN_CMD') {
+      clearTimeout(cmdTimer);
+      const text = cmdAccum;
+      cmdAccum = '';
+      processCommand(text);
+    } else if (mode === 'confirm' && state === 'LISTEN_CONFIRM') {
+      // 沒有 final result 也沒有 onerror 就結束 → 自動重新聆聽
+      setState('AWAIT_CONFIRM');
+      autoListenConfirm();
+    }
+  };
 
   recognizer.start();
 }
 
 // ─────────────────────────────────────────────────────────────────
-//  Helpers
+//  Audio feedback
 // ─────────────────────────────────────────────────────────────────
-function resetToIdle() {
-  pendingAction = null;
-  pendingApi = null;
-  UI.transcript.textContent = '（尚未收到語音輸入）';
-  UI.actionText.textContent = '（等待指令）';
-  setState('IDLE');
+function playExecSound(vehicle) {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const T = ctx.currentTime;
+  const DUR = 3.6; // 配合進度條約 3.7 秒
+
+  if (vehicle === 'AMR') {
+    // 6 聲機械脈衝（方波交替音高），平均分佈整個執行期間
+    [0, 0.58, 1.16, 1.74, 2.32, 2.9].forEach((start, i) => {
+      const osc = ctx.createOscillator();
+      const g   = ctx.createGain();
+      osc.connect(g); g.connect(ctx.destination);
+      osc.type = 'square';
+      osc.frequency.value = i % 2 === 0 ? 220 : 300;
+      g.gain.setValueAtTime(0.001, T + start);
+      g.gain.linearRampToValueAtTime(0.14, T + start + 0.02);
+      g.gain.setValueAtTime(0.14,  T + start + 0.18);
+      g.gain.exponentialRampToValueAtTime(0.001, T + start + 0.38);
+      osc.start(T + start);
+      osc.stop(T + start + 0.42);
+    });
+  } else if (vehicle === 'UAV') {
+    // 旋翼加速（0→1.2s 上升）再維持懸停（輕微飄動）至結束
+    const osc    = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const g      = ctx.createGain();
+    osc.connect(filter); filter.connect(g); g.connect(ctx.destination);
+
+    filter.type = 'lowpass';
+    filter.frequency.value = 900;
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(140, T);
+    osc.frequency.exponentialRampToValueAtTime(520, T + 1.2);
+    osc.frequency.setValueAtTime(505, T + 1.8);
+    osc.frequency.setValueAtTime(530, T + 2.4);
+    osc.frequency.setValueAtTime(510, T + 3.0);
+    osc.frequency.setValueAtTime(520, T + 3.4);
+
+    g.gain.setValueAtTime(0.001, T);
+    g.gain.linearRampToValueAtTime(0.13, T + 0.5);
+    g.gain.setValueAtTime(0.11, T + DUR - 0.4);
+    g.gain.exponentialRampToValueAtTime(0.001, T + DUR);
+
+    osc.start(T);
+    osc.stop(T + DUR + 0.1);
+  }
+}
+
+function playStartBeep() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const gain = ctx.createGain();
+  gain.connect(ctx.destination);
+
+  [[600, 0, 0.08], [900, 0.1, 0.08], [1200, 0.2, 0.12]].forEach(([freq, start, dur]) => {
+    const osc = ctx.createOscillator();
+    osc.connect(gain);
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.25, ctx.currentTime + start);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+    osc.start(ctx.currentTime + start);
+    osc.stop(ctx.currentTime + start + dur + 0.05);
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────
 //  Mic button handler
 // ─────────────────────────────────────────────────────────────────
 function handleMicClick() {
-  if (state === 'LISTEN_CMD') {
-    recognizer && recognizer.stop();
+  // STANDBY → press mic → cancel standby → IDLE
+  if (state === 'STANDBY') {
+    recognizer && recognizer.abort();
+    UI.transcript.textContent = '（尚未收到語音輸入）';
+    UI.actionText.textContent = '（等待指令）';
+    UI.interim.textContent = '';
     setState('IDLE');
     return;
   }
+  // LISTEN_CMD → press mic → back to STANDBY
+  if (state === 'LISTEN_CMD') {
+    recognizer && recognizer.stop();
+    startStandby();
+    return;
+  }
+  // AWAIT_CONFIRM / LISTEN_CONFIRM → press mic → cancel action → back to STANDBY
   if (state === 'AWAIT_CONFIRM' || state === 'LISTEN_CONFIRM') {
     recognizer && recognizer.abort();
     synth.cancel();
-    resetToIdle();
+    startStandby();
     return;
   }
+  // IDLE → press mic → enter STANDBY
   if (state !== 'IDLE') return;
-
-  UI.transcript.textContent = '（聆聽中…）';
-  UI.actionText.textContent = '（等待指令）';
-  UI.progressFill.style.width = '0%';
-  pendingAction = null;
-  pendingApi = null;
-  startRecognizing('cmd');
+  playStartBeep();
+  startStandby();
 }
 
 // spacebar shortcut
@@ -509,16 +738,18 @@ window.addEventListener('keydown', (e) => {
 // ─────────────────────────────────────────────────────────────────
 function processCommand(text) {
   setState('PROCESS');
+  const lower = text.toLowerCase();
   setTimeout(() => {
-    const matched = COMMANDS.find(c => c.keywords.some(k => text.includes(k)));
+    const matched = COMMANDS.find(c => c.keywords.some(k => lower.includes(k)));
     if (!matched) {
       UI.actionText.textContent = '（無法辨識指令）';
       setState('RETRY');
-      speak('無法辨識指令，請重新提供命令', resetToIdle);
+      speak('Command not recognized.', startStandby);
       return;
     }
     pendingAction = matched.action;
     pendingApi = matched.api || null;
+    pendingVehicle = matched.vehicle || null;
     UI.actionText.textContent = matched.action;
     speakActionPrompt(matched.action);
   }, 400);
@@ -530,21 +761,21 @@ function processCommand(text) {
 function speak(text, onEnd) {
   synth.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'zh-TW';
+  u.lang = 'en-US';
   u.rate = 0.92;
   u.pitch = 1.0;
   u.volume = 1.0;
   const voices = synth.getVoices();
-  const zhVoice = voices.find(v => /zh[-_]TW|zh[-_]Hant|zh[-_]HK/i.test(v.lang))
-                || voices.find(v => v.lang.toLowerCase().startsWith('zh'));
-  if (zhVoice) u.voice = zhVoice;
+  const enVoice = voices.find(v => /en[-_]US/i.test(v.lang))
+                || voices.find(v => v.lang.toLowerCase().startsWith('en'));
+  if (enVoice) u.voice = enVoice;
   if (onEnd) u.onend = onEnd;
   synth.speak(u);
 }
 
 function speakActionPrompt(action) {
   setState('SPEAK_ACTION');
-  speak(`${action}，請回覆是否正確`, () => {
+  speak(`${action}. Please say yes or no.`, () => {
     setState('AWAIT_CONFIRM');
     autoListenConfirm();
   });
@@ -560,18 +791,19 @@ function autoListenConfirm() {
 //  Confirmation handler
 // ─────────────────────────────────────────────────────────────────
 function handleConfirm(text) {
-  const pos = POSITIVE.some(k => text.includes(k));
-  const neg = NEGATIVE.some(k => text.includes(k));
+  const lower = text.toLowerCase();
+  const pos = POSITIVE.some(k => lower.includes(k));
+  const neg = NEGATIVE.some(k => lower.includes(k));
 
   if (pos && !neg) {
     executeAction();
   } else if (neg) {
     addHistory(pendingAction, false);
     setState('RETRY');
-    speak('請重新提供命令', resetToIdle);
+    speak('Cancelled.', startStandby);
   } else {
     setState('AWAIT_CONFIRM');
-    speak('無法辨識，請說正確或錯誤', () => autoListenConfirm());
+    speak('Cannot recognize. Please say yes or no.', () => autoListenConfirm());
   }
 }
 
@@ -579,10 +811,13 @@ function handleConfirm(text) {
 //  Execute
 // ─────────────────────────────────────────────────────────────────
 function executeAction() {
+  playExecSound(pendingVehicle);
   setState('EXECUTE');
   UI.execPanel.classList.add('show');
-  UI.execName.textContent = pendingAction || '未知動作';
-  UI.execApi.textContent  = pendingApi || '';
+  UI.execName.textContent   = pendingAction || '未知動作';
+  UI.execApi.textContent    = pendingApi || '';
+  UI.execVehicle.textContent = (pendingVehicle && VEHICLE_ART[pendingVehicle]) ? VEHICLE_ART[pendingVehicle] : '';
+  UI.execVehicle.className  = 'exec-vehicle' + (pendingVehicle ? ' ' + pendingVehicle.toLowerCase() : '');
   UI.progressFill.style.width = '0%';
 
   let p = 0;
@@ -597,9 +832,9 @@ function executeAction() {
         UI.execPanel.classList.remove('show');
         UI.progressFill.style.width = '0%';
         UI.execApi.textContent = '';
-        pendingAction = null;
-        pendingApi = null;
-        setState('IDLE');
+        UI.execVehicle.textContent = '';
+        UI.execVehicle.className = 'exec-vehicle';
+        startStandby();
       }, 600);
     }
   }, 55);
